@@ -32,32 +32,39 @@ jobs:
       - run: ruff check .
       - run: pytest -q
 
-  docker-build:
+    docker-build:
     needs: lint-test
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      security-events: write    # needed to upload results to the Security tab
+      security-events: write
     steps:
       - uses: actions/checkout@v6
 
       - name: Build image
         run: docker build -t bb2gha:${{ github.sha }} .
 
-      # Third-party action: in a real platform, pin to a full commit SHA
-      # (see README "Supply chain" notes). Tag shown here for readability.
-      - name: Scan image with Trivy
+      - name: Trivy report (SARIF, all severities)
         uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: bb2gha:${{ github.sha }}
           format: sarif
           output: trivy-results.sarif
+          exit-code: "0"          # report only, never blocks
+
+      - name: Trivy gate (fixable HIGH/CRITICAL)
+        uses: aquasecurity/trivy-action@v0.36.0
+        env:
+          TRIVY_SKIP_DB_UPDATE: true   # reuse DB from the step above
+        with:
+          image-ref: bb2gha:${{ github.sha }}
+          format: table           # readable output in the log
           severity: CRITICAL,HIGH
-          ignore-unfixed: true    # only fail on CVEs that have a fix available
-          exit-code: "1"          # <- this makes it a quality GATE, not just a report
+          ignore-unfixed: true
+          exit-code: "1"          # the actual gate
 
       - name: Upload scan results to GitHub Security tab
-        if: always()              # upload even when the scan failed the job
+        if: always()
         uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: trivy-results.sarif
