@@ -11,7 +11,7 @@ updates:
       interval: weekly
     groups:
       python-deps:
-        patterns: ["*"]     # one grouped PR instead of many (less noise)
+        patterns: ["*"]     # one grouped PR instead of many (less noise)()
 
   - package-ecosystem: docker
     directory: /

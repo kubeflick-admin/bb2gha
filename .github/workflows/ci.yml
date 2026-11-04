@@ -32,7 +32,7 @@ jobs:
       - run: ruff check .
       - run: pytest -q
 
-    docker-build:
+  docker-build:
     needs: lint-test
     runs-on: ubuntu-latest
     permissions:

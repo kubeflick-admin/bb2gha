@@ -10,7 +10,7 @@ on:
   pull_request:
     branches: [main]
   schedule:
-    - cron: "17 6 * * 1"    # weekly Monday scan: catches new CVE rules on unchanged code
+    - cron: "17 6 * * 1"    # weekly Monday scan: catches new CVE rules on unchanged code.
 
 permissions:
   contents: read
