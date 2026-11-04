@@ -1,0 +1,33 @@
+# ---------------------------------------------------------------
+# "BEFORE" state: the legacy Bitbucket pipeline we are migrating.
+# ---------------------------------------------------------------
+image: python:3.12
+
+definitions:
+  caches:
+    pip: ~/.cache/pip
+  steps:
+    - step: &lint-test
+        name: Lint and test
+        caches:
+          - pip
+        script:
+          - pip install -r requirements-dev.txt
+          - ruff check .
+          - pytest -q
+
+pipelines:
+  # Runs on every push to any branch
+  default:
+    - step: *lint-test
+
+  # Extra steps only on main
+  branches:
+    main:
+      - step: *lint-test
+      - step:
+          name: Build Docker image
+          services:
+            - docker
+          script:
+            - docker build -t bb2gha:$BITBUCKET_COMMIT .

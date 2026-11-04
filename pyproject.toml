@@ -1,0 +1,4 @@
+[tool.pytest.ini_options]
+# Put the repo root on sys.path so tests can `import app` when run via the
+# bare `pytest` entrypoint (only `python -m pytest` adds the CWD by default).
+pythonpath = ["."]
