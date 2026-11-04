@@ -1,0 +1,24 @@
+# ---------------------------------------------------------------
+# SCA: Dependabot opens PRs when dependencies have updates or CVEs.
+# Three ecosystems = app libs, Docker base image, AND the actions
+# themselves (actions are dependencies too - supply chain!).
+# ---------------------------------------------------------------
+version: 2
+updates:
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      python-deps:
+        patterns: ["*"]     # one grouped PR instead of many (less noise)()
+
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

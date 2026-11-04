@@ -1,38 +1,71 @@
 # ---------------------------------------------------------------
-# "AFTER" state: the same pipeline, migrated to GitHub Actions.
-# Compare side by side with bitbucket-pipelines.yml.
+# CI: lint, test, build image, scan image. Runs on every push and PR.
+# Phase 1 = migrated from bitbucket-pipelines.yml
+# Phase 2 = added Trivy image scan as a quality gate
 # ---------------------------------------------------------------
 name: CI
 
 on:
-  push:                       # = Bitbucket "default" (every branch)
+  push:
   pull_request:
     branches: [main]
 
-# Least privilege for the auto-generated GITHUB_TOKEN (security interview point)
+# Least privilege by default; jobs ask for more only if they need it.
 permissions:
   contents: read
 
+# Cancel older runs on the same branch when you push again (saves minutes = FinOps)
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  lint-test:                  # = the &lint-test anchor in Bitbucket
+  lint-test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
-          cache: pip          # = Bitbucket "caches: - pip"
-
+          cache: pip
       - run: pip install -r requirements-dev.txt
       - run: ruff check .
       - run: pytest -q
 
   docker-build:
-    needs: lint-test          # runs only if tests pass (a quality gate)
-    if: github.ref == 'refs/heads/main'   # = Bitbucket "branches: main"
+    needs: lint-test
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
     steps:
-      - uses: actions/checkout@v4
-      # Docker is pre-installed on GitHub runners - no "services: docker" needed
-      - run: docker build -t bb2gha:${{ github.sha }} .
+      - uses: actions/checkout@v6
+
+      - name: Build image
+        run: docker build -t bb2gha:${{ github.sha }} .
+
+      - name: Trivy report (SARIF, all severities)
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: bb2gha:${{ github.sha }}
+          format: sarif
+          output: trivy-results.sarif
+          exit-code: "0"          # report only, never blocks
+
+      - name: Trivy gate (fixable HIGH/CRITICAL)
+        uses: aquasecurity/trivy-action@v0.36.0
+        env:
+          TRIVY_SKIP_DB_UPDATE: true   # reuse DB from the step above
+        with:
+          image-ref: bb2gha:${{ github.sha }}
+          format: table           # readable output in the log
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: "1"          # the actual gate
+
+      - name: Upload scan results to GitHub Security tab
+        if: always()
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: trivy-results.sarif
+          category: trivy-image
