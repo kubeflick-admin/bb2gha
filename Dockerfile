@@ -1,6 +1,6 @@
 # Multi-stage-ish slim image. Interview point: small images = faster pulls,
 # smaller attack surface, fewer CVEs for Trivy to flag.
-FROM python:3.12-slim
+FROM python:3.8-slim
 
 # Don't run as root (security hardening - asked about in DevSecOps interviews)
 RUN useradd --create-home appuser
